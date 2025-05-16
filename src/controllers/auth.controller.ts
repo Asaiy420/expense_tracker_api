@@ -2,7 +2,16 @@ import { Request, Response } from "express";
 import { PrismaClient } from "../../generated/prisma";
 import bcrypt from "bcryptjs";
 import { generateToken } from "../lib/jwt";
+import { CookieOptions } from "express";
+
 const prisma = new PrismaClient();
+
+const cookieOptions: CookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production", // only send the cookie over https in production
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    sameSite: "strict",
+}
 
 export const signUp = async (req: Request, res: Response): Promise<any> => {
   try {
@@ -50,6 +59,7 @@ export const signUp = async (req: Request, res: Response): Promise<any> => {
     });
 
     const token = generateToken(newUser.id);
+    res.cookie("token", token, cookieOptions); // set the cookie
 
     res.status(201).json({
       success: true,
@@ -107,12 +117,15 @@ export const login = async (req: Request, res: Response): Promise<any> => {
 
     const { password: _, ...userWithoutPassword } = user; // exclude the password from the response
 
+    res.cookie("token", token, cookieOptions); // set the cookie
+
     return res
       .status(200)
       .json({
         success: true,
         message: "User logged in sucessfully",
         user: userWithoutPassword,
+        token,
       });
   } catch (error: any) {
     console.log("Error in login controller", error.message);
@@ -120,4 +133,13 @@ export const login = async (req: Request, res: Response): Promise<any> => {
   }
 };
 
-export const logout = async (req: Request, res: Response) => {};
+export const logout = async (req: Request, res: Response) => {
+    try {
+        
+        res.clearCookie("token");
+        res.status(200).json({success: true, message: "User logged out successfully"});
+    } catch (error: any) {
+        console.log("Error in logout controller", error.message);
+        res.status(500).json({message: "Internal Server Error"})
+    }
+};
