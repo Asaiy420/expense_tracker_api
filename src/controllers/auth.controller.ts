@@ -136,7 +136,7 @@ export const login = async (req: Request, res: Response): Promise<any> => {
 export const logout = async (req: Request, res: Response) => {
     try {
         
-        res.clearCookie("token");
+        res.clearCookie("token", cookieOptions);
         res.status(200).json({success: true, message: "User logged out successfully"});
     } catch (error: any) {
         console.log("Error in logout controller", error.message);
