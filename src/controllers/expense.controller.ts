@@ -112,9 +112,109 @@ export const createExpense = async (
 export const updateExpense = async (
   req: Request,
   res: Response
-): Promise<any> => {};
+): Promise<any> => {
+  const userReq = req as AuthenticatedRequest;
+
+  try {
+    const { id } = req.params;
+    const { title, description, amount, category } = req.body;
+    const userId = userReq.user?.id;
+
+    // check for userId
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // check for expense
+
+    const expense = await prisma.expense.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    if (!expense) {
+      return res
+        .status(404)
+        .json({ message: "Expense with this id does not exist" });
+    }
+
+    if (expense.userId !== userId) {
+      return res
+        .status(403)
+        .json({ message: "You are not authorized to update this expense" });
+    }
+
+    if (
+      category !== "Groceries" &&
+      category !== "Leisure" &&
+      category !== "Electronics" &&
+      category !== "Utilities" &&
+      category !== "Clothing" &&
+      category !== "Health" &&
+      category !== "Others"
+    ) {
+      return res.status(400).json({ message: "Invalid category" });
+    }
+
+    const updatedExpense = await prisma.expense.update({
+      where: { id: parseInt(id) },
+      data: {
+        title,
+        description,
+        amount,
+        category,
+      },
+    });
+
+    return res.status(200).json({
+      message: "Expense updated successfully",
+      expense: updatedExpense,
+    });
+  } catch (error: any) {
+    console.log("Error in updateExpense controller", error.message);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 export const deleteExpense = async (
   req: Request,
   res: Response
-): Promise<any> => {};
+): Promise<any> => {
+  try {
+    const { id } = req.params;
+    const userReq = req as AuthenticatedRequest;
+    const userId = userReq.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const expense = await prisma.expense.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    if (!expense) {
+      return res
+        .status(404)
+        .json({ message: "Expense with this id does not exist" });
+    }
+
+    if (expense.userId !== userId) {
+      return res
+        .status(403)
+        .json({ message: "You are not authorized to delete this expense" });
+    }
+
+    await prisma.expense.delete({
+      where: { id: parseInt(id) },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Expense deleted successfully",
+    });
+  } catch (error: any) {
+    console.log("Error in deleteExpense controller", error.message);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
